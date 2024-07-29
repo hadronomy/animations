@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@dagrejs/dagre": "dagrejs/dagre",
+    "@lezer/javascript": "^1.4.17",
     "@motion-canvas/2d": "^3.10.1",
     "@motion-canvas/core": "^3.10.0",
     "@motion-canvas/ffmpeg": "^1.1.0"
