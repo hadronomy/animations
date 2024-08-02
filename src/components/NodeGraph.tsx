@@ -1,11 +1,11 @@
 import { graphlib, layout } from "@dagrejs/dagre";
-import { View2D, Circle, Txt, Line, Code } from "@motion-canvas/2d";
+import { View2D, Circle, Txt, Line } from "@motion-canvas/2d";
 import {
-  createRef,
   waitFor,
   sequence,
   all,
   makeRef,
+  waitUntil,
 } from "@motion-canvas/core";
 
 export function* NodeGraph(view: View2D) {
@@ -25,19 +25,23 @@ export function* NodeGraph(view: View2D) {
   graph.setNode("3", { label: "3", width: NODE_SIZE, height: NODE_SIZE });
   graph.setNode("4", { label: "4", width: NODE_SIZE, height: NODE_SIZE });
   graph.setNode("5", { label: "5", width: NODE_SIZE, height: NODE_SIZE });
+  graph.setNode("6", { label: "6", width: NODE_SIZE, height: NODE_SIZE });
+  graph.setNode("7", { label: "7", width: NODE_SIZE, height: NODE_SIZE });
 
   graph.setEdge("1", "4");
   graph.setEdge("2", "3");
-  graph.setEdge("3", "4");
   graph.setEdge("4", "5");
   graph.setEdge("5", "2");
-  graph.setEdge("5", "1");
   graph.setEdge("5", "3");
+  graph.setEdge("5", "6");
+  graph.setEdge("6", "1");
+  graph.setEdge("1", "7");
 
   yield layout(graph);
   const graphNodes = graph.nodes().map((node) => graph.node(node));
   const graphEdges = graph.edges().map((edge) => graph.edge(edge));
 
+  yield* waitUntil("event");
   const circles: Circle[] = [];
   // Create some rects
   view.add(
@@ -77,6 +81,7 @@ export function* NodeGraph(view: View2D) {
           stroke="#666"
           lineWidth={10}
           endArrow
+          arrowSize={20}
           startOffset={5}
           endOffset={5}
           radius={80}
