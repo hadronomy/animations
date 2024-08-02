@@ -14,6 +14,7 @@
     "@motion-canvas/ffmpeg": "^1.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
     "@motion-canvas/ui": "^3.10.0",
     "@motion-canvas/vite-plugin": "^3.10.0",
     "typescript": "^4.9.5",
