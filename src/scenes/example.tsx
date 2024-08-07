@@ -1,7 +1,11 @@
 import { makeScene2D } from '@motion-canvas/2d';
+import { createRef } from '@motion-canvas/core';
 
-import { NodeGraph } from '../components/NodeGraph';
+import { Graph } from '../components/NodeGraph';
 
 export default makeScene2D(function* (view) {
-  yield* NodeGraph(view);
+  const graph = createRef<Graph>();
+
+  view.add(<Graph ref={graph} />);
+  yield* graph().animateIn();
 });

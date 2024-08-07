@@ -7,7 +7,7 @@
     "build": "tsc && vite build"
   },
   "dependencies": {
-    "@dagrejs/dagre": "dagrejs/dagre",
+    "@dagrejs/dagre": "^1.1.3",
     "@lezer/javascript": "^1.4.17",
     "@motion-canvas/2d": "^3.10.1",
     "@motion-canvas/core": "^3.10.0",

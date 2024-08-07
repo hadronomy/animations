@@ -1,21 +1,22 @@
 import { graphlib, layout } from '@dagrejs/dagre';
 import {
   Circle,
-  Line,
-  Node,
-  type NodeProps,
   Txt,
+  Line,
+  type NodeProps,
+  Node,
   initial,
   signal,
 } from '@motion-canvas/2d';
 import {
-  type SignalValue,
-  type SimpleSignal,
+  waitFor,
+  sequence,
   all,
   makeRef,
-  sequence,
-  waitFor,
   waitUntil,
+  SimpleSignal,
+  SignalValue,
+  useLogger,
 } from '@motion-canvas/core';
 
 export interface GraphProps extends NodeProps {
@@ -33,48 +34,36 @@ export class Graph extends Node {
   public constructor(props?: GraphProps) {
     super({ ...props });
 
+    const logger = useLogger();
     const graph = new graphlib.Graph();
     graph.setGraph({});
     graph.setDefaultEdgeLabel(() => ({}));
 
     const GRAPH_X_OFFSET = -500;
     const NODE_TEXT_RELATION = 2.18;
-    const NODE_TEXT_SIZE = this.nodeSize() / NODE_TEXT_RELATION;
+    const NODE_TEXT_SIZE = this.nodeSize / NODE_TEXT_RELATION;
+    logger.debug({ message: 'Ouch', object: this.nodeSize });
 
     graph.setNode('1', {
       label: '1',
-      width: this.nodeSize(),
-      height: this.nodeSize(),
     });
     graph.setNode('2', {
       label: '2',
-      width: this.nodeSize(),
-      height: this.nodeSize(),
     });
     graph.setNode('3', {
       label: '3',
-      width: this.nodeSize(),
-      height: this.nodeSize(),
     });
     graph.setNode('4', {
       label: '4',
-      width: this.nodeSize(),
-      height: this.nodeSize(),
     });
     graph.setNode('5', {
       label: '5',
-      width: this.nodeSize(),
-      height: this.nodeSize(),
     });
     graph.setNode('6', {
       label: '6',
-      width: this.nodeSize(),
-      height: this.nodeSize(),
     });
     graph.setNode('7', {
       label: '7',
-      width: this.nodeSize(),
-      height: this.nodeSize(),
     });
 
     graph.setEdge('1', '4');
@@ -144,7 +133,6 @@ export class Graph extends Node {
   }
 
   public *animateIn() {
-    const nodeSize = this.nodeSize();
     yield* this.nodes.map(function* (circle) {
       yield circle.size(0);
       yield circle.opacity(0);
@@ -155,10 +143,11 @@ export class Graph extends Node {
     });
 
     yield* waitFor(1);
+
     yield* sequence(
       0.2,
       ...this.nodes.map(function* (circle) {
-        yield* all(circle.opacity(1, 1), circle.size(nodeSize, 1));
+        yield* all(circle.opacity(1, 1), circle.size(this.nodeSize, 1));
       }),
       ...this.edges.map(function* (edge) {
         yield* edge.end(1, 1);
