@@ -14,7 +14,6 @@ import {
   all,
   makeRef,
   sequence,
-  waitFor,
   waitUntil,
 } from '@motion-canvas/core';
 
@@ -37,7 +36,6 @@ export class Graph extends Node {
     graph.setGraph({});
     graph.setDefaultEdgeLabel(() => ({}));
 
-    const GRAPH_X_OFFSET = -500;
     const NODE_TEXT_RELATION = 2.18;
     const NODE_TEXT_SIZE = this.nodeSize() / NODE_TEXT_RELATION;
 
@@ -99,8 +97,8 @@ export class Graph extends Node {
           ref={makeRef(this.nodes, i)}
           width={this.nodeSize}
           height={this.nodeSize}
-          x={GRAPH_X_OFFSET + node.x}
-          y={-400 + node.y}
+          x={node.x}
+          y={node.y}
           fill="#242424"
           stroke="#F3303F"
           lineWidth={10}
@@ -131,12 +129,7 @@ export class Graph extends Node {
             startOffset={5}
             endOffset={5}
             radius={80}
-            points={() =>
-              edge.points.map((point) => [
-                point.x + GRAPH_X_OFFSET,
-                point.y - 400,
-              ])
-            }
+            points={() => edge.points.map((point) => [point.x, point.y])}
           />
         );
       }),

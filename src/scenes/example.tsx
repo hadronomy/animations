@@ -6,7 +6,7 @@ import { Graph } from '../components/NodeGraph';
 export default makeScene2D(function* (view) {
   const graph = createRef<Graph>();
 
-  view.add(<Graph ref={graph} />);
+  view.add(<Graph ref={graph} x={-500} y={-400} />);
   yield* graph().animateIn();
   yield* waitFor(1);
 });
