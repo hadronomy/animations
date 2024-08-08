@@ -146,7 +146,7 @@ export class Graph extends Node {
   public *animateIn() {
     const nodeSize = this.nodeSize();
     yield* this.nodes.map(function* (circle) {
-      yield circle.size(0);
+      yield circle.scale(0);
       yield circle.opacity(0);
     });
 
@@ -158,7 +158,7 @@ export class Graph extends Node {
     yield* sequence(
       0.2,
       ...this.nodes.map(function* (circle) {
-        yield* all(circle.opacity(1, 1), circle.size(nodeSize, 1));
+        yield* all(circle.opacity(1, 1), circle.scale(1, 1));
       }),
       ...this.edges.map(function* (edge) {
         yield* edge.end(1, 1);
