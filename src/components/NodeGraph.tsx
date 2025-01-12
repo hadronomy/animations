@@ -3,11 +3,11 @@ import {
   Circle,
   Line,
   Node,
-  type NodeProps,
   Txt,
   initial,
   signal,
 } from '@motion-canvas/2d';
+import type { NodeProps, PossibleCanvasStyle } from '@motion-canvas/2d';
 import {
   type SignalValue,
   type SimpleSignal,
@@ -19,6 +19,7 @@ import {
 
 export interface GraphProps extends NodeProps {
   nodeSize?: SignalValue<number>;
+  backgroundColor: SignalValue<PossibleCanvasStyle>
 }
 
 export class Graph extends Node {
@@ -99,7 +100,7 @@ export class Graph extends Node {
           height={this.nodeSize}
           x={node.x}
           y={node.y}
-          fill="#242424"
+          fill={props.backgroundColor}
           stroke="#F3303F"
           lineWidth={10}
           alignItems={'center'}
