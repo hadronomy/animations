@@ -1,0 +1,15 @@
+[project]
+name = "manim"
+version = "0.1.0"
+description = "Add a short description here"
+authors = ["Pablo Hernández <17086478+hadronomy@users.noreply.github.com>"]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tasks]
+
+[dependencies]
+manim = ">=0.18.1,<0.19"
+ipykernel = ">=6.29.5,<6.30"
+pip = ">=24.3.1,<24.4"
+marimo = ">=0.10.9,<0.11"

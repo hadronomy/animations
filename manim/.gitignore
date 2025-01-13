@@ -1,0 +1,5 @@
+# pixi environments
+.pixi
+media
+.vscode
+__pycache__

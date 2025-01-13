@@ -1,0 +1,6 @@
+[env]
+CFLAGS = "-I/usr/include/python3.12:/usr/include"
+LDFLAGS = "-L/usr/lib/python3.12/config-3.12-x86_64-linux-gnu:/usr/include"
+
+[tools]
+"cargo:pixi" = "latest"
