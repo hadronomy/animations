@@ -1,14 +1,47 @@
 import { makeScene2D } from '@motion-canvas/2d';
-import { all, createRef, waitFor } from '@motion-canvas/core';
+import { all, createRef, waitFor, useLogger } from '@motion-canvas/core';
 
 import { Graph } from '~/components/NodeGraph';
+
+import exampleGraph from './example-graph.csv';
+import { deserializeGraphFromArray, type RawGraphRow } from '~/utils/deserialize';
+import { generateStronglyConnectedGraph } from '~/utils/graph-generator';
+
+const TOTAL_NODES = 16;
+
+const graphData = deserializeGraphFromArray(exampleGraph as RawGraphRow[]);
 
 export default makeScene2D(function* (view) {
   const graph = createRef<Graph>();
 
-  view.add(<Graph ref={graph} backgroundColor={"#242424"} nodeSize={120} x={-500} y={-400} />);
-  yield* graph().animateIn();
+  view.add(
+    <Graph
+      ref={graph}
+      scale={3}
+      backgroundColor="#242424"
+      textColor="#FFFFFF"
+      layout="cose"
+      nodeSize={20}
+      arrowScale={0.2}
+      highlightColor="#FF9800"
+      animationDuration={1.5}
+      nodes={graphData.nodes}
+      edges={graphData.edges}
+    />
+  );
+  yield* graph().animateIn(5);
   yield* waitFor(1);
-  yield* all(graph().scale(2, 1), graph().rotation(20, 1.5));
+  yield* all(graph().scale(2.2, 1), graph().rotation(20, 1.5)); 
+  yield* waitFor(1);
+
+  yield* graph().animateBFS('BCN');
+  
+  const bfsResult = graph().runBfs('BCN');
+  
+  const path = bfsResult.path.toArray()
+    .slice(0, bfsResult.path.length)
+    .map(node => node.id());
+
+  yield* graph().highlightPath(path);
   yield* waitFor(1);
 });
