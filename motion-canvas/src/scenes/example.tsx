@@ -28,7 +28,7 @@ export default makeScene2D(function* (view) {
   );
   yield* graph().animateIn(5);
   yield* waitFor(1);
-  yield* all(graph().scale(2.2, 1), graph().rotation(20, 1.5)); 
+  yield* all(graph().scale(2.2, 1), graph().stabilizedRotation(20, 1.5)); 
   yield* waitFor(1);
 
   yield* graph().animateBFS('BCN');

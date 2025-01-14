@@ -166,124 +166,6 @@ export class Graph extends Node {
     this.createVisualElements();
   }
 
-  private getLayoutConfig(layout: LayoutType): cytoscape.LayoutOptions {
-    const baseConfig: cytoscape.LayoutOptions = {
-      name: 'preset',
-      animate: false,
-      padding: this.config.nodePadding,
-    };
-
-    const layoutConfigs: LayoutConfigs = {
-      cose: {
-        name: 'cose',
-        idealEdgeLength: () => this.nodeSize() * 2,
-        nodeOverlap: this.nodeSize() * 4,
-        gravity: 1,
-        randomize: false
-      },
-      grid: {
-        name: 'grid',
-        rows: undefined
-      },
-      dagre: {
-        name: 'dagre',
-      },
-      circle: {
-        name: 'circle'
-      },
-      concentric: {
-        name: 'concentric',
-        minNodeSpacing: this.nodeSize() * 1.5
-      },
-      breadthfirst: {
-        name: 'breadthfirst',
-        directed: true
-      }
-    };
-
-    return { ...baseConfig, ...layoutConfigs[layout] };
-  }
-
-  private centerGraph(): void {
-    const bb = this.cy.elements().boundingBox();
-    
-    const offsetX = -bb.x1 - bb.w/2;
-    const offsetY = -bb.y1 - bb.h/2;
-  
-    this.cy.nodes().positions((node) => {
-      const pos = node.position();
-      return {
-        x: pos.x + offsetX,
-        y: pos.y + offsetY
-      };
-    });
-  }
-
-  private applyLayout(): void {
-    this.cy.layout(this.getLayoutConfig('grid')).run();
-    const layout = this.cy.layout(this.getLayoutConfig(this.currentLayout));
-    layout.run();
-    this.centerGraph();
-  }
-
-  private createVisualElements(): void {
-    const NODE_TEXT_SIZE = 
-
-    // Create nodes with labels
-    this.cy.nodes().forEach((node, i) => {
-      const position = node.position();
-      
-      // Create node circle
-      this.add(
-        <Circle
-          layout
-          ref={makeRef(this.nodes, i)}
-          width={this.nodeSize}
-          height={this.nodeSize}
-          x={position.x}
-          y={position.y}
-          fill={this.props.backgroundColor}
-          stroke={this.config.nodeColor}
-          lineWidth={this.config.edgeWidth}
-          alignItems={'center'}
-          justifyContent={'center'}
-          opacity={0}
-          scale={0}
-        >
-          <Txt
-            ref={makeRef(this.labels, i)}
-            fill={this.config.textColor}
-            fontWeight={700}
-            fontSize={this.config.fontSize}
-            text={node.id()}
-            zIndex={2}
-          />
-        </Circle>
-      );
-    });
-
-    // Create edges
-    this.cy.edges().forEach((edge, i) => {
-      const sourcePos = edge.source().position();
-      const targetPos = edge.target().position();
-      
-      this.add(
-        <Line
-          ref={makeRef(this.edges, i)}
-          stroke={this.config.edgeColor}
-          lineWidth={this.config.edgeWidth}
-          endArrow
-          arrowSize={20 * this.config.arrowScale}
-          startOffset={this.nodeSize() / 2 + this.config.nodePadding}
-          endOffset={this.nodeSize() / 2 + this.config.nodePadding}
-          points={[[sourcePos.x, sourcePos.y], [targetPos.x, targetPos.y]]}
-          end={0.0001}
-        />
-      );
-    });
-  }
-
-
   public *animateIn(duration?: number) {
     const totalDuration = duration ?? this.config.animationDuration;
     
@@ -317,6 +199,14 @@ export class Graph extends Node {
         ...this.edges.map((edge) =>
             edge.end(1, edgeDelay, easeInOutCubic)
         )
+    );
+  }
+
+  public *stabilizedRotation(degrees: number, duration?: number) {
+    const animDuration = duration ?? this.config.animationDuration;
+    yield* all(
+      this.rotation(degrees, animDuration, easeInOutCubic),
+      ...this.nodes.map(node => node.rotation(-degrees, animDuration, easeInOutCubic)),
     );
   }
 
@@ -453,5 +343,122 @@ export class Graph extends Node {
         edge.stroke(this.config.edgeColor, animDuration)
       )
     );
+  }
+
+  private getLayoutConfig(layout: LayoutType): cytoscape.LayoutOptions {
+    const baseConfig: cytoscape.LayoutOptions = {
+      name: 'preset',
+      animate: false,
+      padding: this.config.nodePadding,
+    };
+
+    const layoutConfigs: LayoutConfigs = {
+      cose: {
+        name: 'cose',
+        idealEdgeLength: () => this.nodeSize() * 2,
+        nodeOverlap: this.nodeSize() * 4,
+        gravity: 1,
+        randomize: false
+      },
+      grid: {
+        name: 'grid',
+        rows: undefined
+      },
+      dagre: {
+        name: 'dagre',
+      },
+      circle: {
+        name: 'circle'
+      },
+      concentric: {
+        name: 'concentric',
+        minNodeSpacing: this.nodeSize() * 1.5
+      },
+      breadthfirst: {
+        name: 'breadthfirst',
+        directed: true
+      }
+    };
+
+    return { ...baseConfig, ...layoutConfigs[layout] };
+  }
+
+  private centerGraph(): void {
+    const bb = this.cy.elements().boundingBox();
+    
+    const offsetX = -bb.x1 - bb.w/2;
+    const offsetY = -bb.y1 - bb.h/2;
+  
+    this.cy.nodes().positions((node) => {
+      const pos = node.position();
+      return {
+        x: pos.x + offsetX,
+        y: pos.y + offsetY
+      };
+    });
+  }
+
+  private applyLayout(): void {
+    this.cy.layout(this.getLayoutConfig('grid')).run();
+    const layout = this.cy.layout(this.getLayoutConfig(this.currentLayout));
+    layout.run();
+    this.centerGraph();
+  }
+
+  private createVisualElements(): void {
+    const NODE_TEXT_SIZE = 
+
+    // Create nodes with labels
+    this.cy.nodes().forEach((node, i) => {
+      const position = node.position();
+      
+      // Create node circle
+      this.add(
+        <Circle
+          layout
+          ref={makeRef(this.nodes, i)}
+          width={this.nodeSize}
+          height={this.nodeSize}
+          x={position.x}
+          y={position.y}
+          fill={this.props.backgroundColor}
+          stroke={this.config.nodeColor}
+          lineWidth={this.config.edgeWidth}
+          alignItems={'center'}
+          justifyContent={'center'}
+          opacity={0}
+          scale={0}
+        >
+          <Txt
+            ref={makeRef(this.labels, i)}
+            fill={this.config.textColor}
+            fontWeight={700}
+            fontSize={this.config.fontSize}
+            text={node.id()}
+            zIndex={2}
+          />
+        </Circle>
+      );
+    });
+
+    // Create edges
+    this.cy.edges().forEach((edge, i) => {
+      const sourcePos = edge.source().position();
+      const targetPos = edge.target().position();
+      
+      this.add(
+        <Line
+          ref={makeRef(this.edges, i)}
+          stroke={this.config.edgeColor}
+          lineWidth={this.config.edgeWidth}
+          endArrow
+          arrowSize={20 * this.config.arrowScale}
+          startOffset={this.nodeSize() / 2 + this.config.nodePadding}
+          endOffset={this.nodeSize() / 2 + this.config.nodePadding}
+          points={[[sourcePos.x, sourcePos.y], [targetPos.x, targetPos.y]]}
+          end={0.0001}
+        />
+      );
+    });
   }
 }
