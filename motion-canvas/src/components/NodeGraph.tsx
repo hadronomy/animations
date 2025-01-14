@@ -10,7 +10,7 @@ import {
   signal,
   type Shape,
 } from '@motion-canvas/2d';
-import type { NodeProps, PossibleCanvasStyle, Rect } from '@motion-canvas/2d';
+import type { NodeProps, PossibleCanvasStyle} from '@motion-canvas/2d';
 import {
   type SignalValue,
   type SimpleSignal,
@@ -177,9 +177,9 @@ export class Graph extends Node {
       cose: {
         name: 'cose',
         idealEdgeLength: () => this.nodeSize() * 2,
-        nodeOverlap: 20,
+        nodeOverlap: this.nodeSize() * 4,
         gravity: 1,
-        randomize: true
+        randomize: false
       },
       grid: {
         name: 'grid',
@@ -220,6 +220,7 @@ export class Graph extends Node {
   }
 
   private applyLayout(): void {
+    this.cy.layout(this.getLayoutConfig('grid')).run();
     const layout = this.cy.layout(this.getLayoutConfig(this.currentLayout));
     layout.run();
     this.centerGraph();
