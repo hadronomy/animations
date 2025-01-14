@@ -18,17 +18,10 @@ import {
   makeRef,
   sequence,
   easeInOutCubic,
-  Reference,
-  type SignalGenerator,
-  Vector2,
-  createRef,
 } from '@motion-canvas/core';
 
 // Define layout types supported by Cytoscape
 type LayoutType = 'grid' | 'circle' | 'concentric' | 'breadthfirst' | 'cose' | 'dagre';
-
-// Define animation types for transitions
-type AnimationType = 'linear' | 'easeIn' | 'easeOut' | 'easeInOut';
 
 // Graph node structure with optional metadata
 interface GraphNode {
