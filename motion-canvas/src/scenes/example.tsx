@@ -19,7 +19,7 @@ export default makeScene2D(function* (view) {
       textColor="#FFFFFF"
       layout="cose"
       nodeSize={20}
-      arrowScale={0.2}
+      arrowScale={0.15}
       highlightColor="#FF9800"
       animationDuration={1.5}
       nodes={graphData.nodes}
