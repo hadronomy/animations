@@ -139,6 +139,7 @@ export class Graph extends Node {
       fontSize: props.fontSize ?? this.nodeSize() / 2.5 * (props.textScale ?? 1)
     };
 
+    this.nodeSize(this.config.nodeSize);
     this.currentLayout = this.config.layout;
 
     cytoscape.use(dagre);
