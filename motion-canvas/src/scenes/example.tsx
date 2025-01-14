@@ -5,9 +5,6 @@ import { Graph } from '~/components/NodeGraph';
 
 import exampleGraph from './example-graph.csv';
 import { deserializeGraphFromArray, type RawGraphRow } from '~/utils/deserialize';
-import { generateStronglyConnectedGraph } from '~/utils/graph-generator';
-
-const TOTAL_NODES = 16;
 
 const graphData = deserializeGraphFromArray(exampleGraph as RawGraphRow[]);
 
