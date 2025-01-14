@@ -10,7 +10,7 @@ import {
   signal,
   type Shape,
 } from '@motion-canvas/2d';
-import type { NodeProps, PossibleCanvasStyle} from '@motion-canvas/2d';
+import type { NodeProps, PossibleCanvasStyle } from '@motion-canvas/2d';
 import {
   type SignalValue,
   type SimpleSignal,
@@ -18,10 +18,17 @@ import {
   makeRef,
   sequence,
   easeInOutCubic,
+  useLogger,
 } from '@motion-canvas/core';
 
 // Define layout types supported by Cytoscape
-type LayoutType = 'grid' | 'circle' | 'concentric' | 'breadthfirst' | 'cose' | 'dagre';
+type LayoutType =
+  | 'grid'
+  | 'circle'
+  | 'concentric'
+  | 'breadthfirst'
+  | 'cose'
+  | 'dagre';
 
 // Graph node structure with optional metadata
 interface GraphNode {
@@ -123,8 +130,13 @@ export class Graph extends Node {
       arrowScale: props.arrowScale ?? 0.1,
       textScale: props.textScale ?? 1,
       nodes: props.nodes ?? [
-        { id: '1' }, { id: '2' }, { id: '3' },
-        { id: '4' }, { id: '5' }, { id: '6' }, { id: '7' }
+        { id: '1' },
+        { id: '2' },
+        { id: '3' },
+        { id: '4' },
+        { id: '5' },
+        { id: '6' },
+        { id: '7' },
       ],
       edges: props.edges ?? [
         { source: '1', target: '4', weight: 1 },
@@ -134,9 +146,10 @@ export class Graph extends Node {
         { source: '5', target: '3', weight: 2 },
         { source: '5', target: '6', weight: 1 },
         { source: '6', target: '1', weight: 2 },
-        { source: '1', target: '7', weight: 1 }
+        { source: '1', target: '7', weight: 1 },
       ],
-      fontSize: props.fontSize ?? this.nodeSize() / 2.5 * (props.textScale ?? 1)
+      fontSize:
+        props.fontSize ?? (this.nodeSize() / 2.5) * (props.textScale ?? 1),
     };
 
     this.nodeSize(this.config.nodeSize);
@@ -148,18 +161,18 @@ export class Graph extends Node {
     this.cy = cytoscape({
       headless: true,
       elements: {
-        nodes: this.config.nodes.map(node => ({
-          data: { id: node.id, ...node.data }
+        nodes: this.config.nodes.map((node) => ({
+          data: { id: node.id, ...node.data },
         })),
-        edges: this.config.edges.map(edge => ({
+        edges: this.config.edges.map((edge) => ({
           data: {
             id: `${edge.source}-${edge.target}`,
             source: edge.source,
             target: edge.target,
-            weight: edge.weight
-          }
-        }))
-      }
+            weight: edge.weight,
+          },
+        })),
+      },
     });
 
     this.applyLayout();
@@ -168,14 +181,14 @@ export class Graph extends Node {
 
   public *animateIn(duration?: number) {
     const totalDuration = duration ?? this.config.animationDuration;
-    
+
     if (totalDuration === 0) {
-        for (const circle of this.nodes) {
-            circle.opacity(1);
-            circle.scale(1);
-        }
-        for (const edge of this.edges) edge.end(1);
-        return;
+      for (const circle of this.nodes) {
+        circle.opacity(1);
+        circle.scale(1);
+      }
+      for (const edge of this.edges) edge.end(1);
+      return;
     }
 
     const nodesPortion = totalDuration * 0.5;
@@ -185,20 +198,18 @@ export class Graph extends Node {
     const edgeDelay = edgesPortion / this.edges.length;
 
     yield* sequence(
-        nodeDelay,
-        ...this.nodes.map((circle) =>
-            all(
-                circle.opacity(1, nodeDelay, easeInOutCubic),
-                circle.scale(1, nodeDelay, easeInOutCubic)
-            )
-        )
+      nodeDelay,
+      ...this.nodes.map((circle) =>
+        all(
+          circle.opacity(1, nodeDelay, easeInOutCubic),
+          circle.scale(1, nodeDelay, easeInOutCubic),
+        ),
+      ),
     );
 
     yield* sequence(
-        edgeDelay,
-        ...this.edges.map((edge) =>
-            edge.end(1, edgeDelay, easeInOutCubic)
-        )
+      edgeDelay,
+      ...this.edges.map((edge) => edge.end(1, edgeDelay, easeInOutCubic)),
     );
   }
 
@@ -206,7 +217,9 @@ export class Graph extends Node {
     const animDuration = duration ?? this.config.animationDuration;
     yield* all(
       this.rotation(degrees, animDuration, easeInOutCubic),
-      ...this.nodes.map(node => node.rotation(-degrees, animDuration, easeInOutCubic)),
+      ...this.nodes.map((node) =>
+        node.rotation(-degrees, animDuration, easeInOutCubic),
+      ),
     );
   }
 
@@ -225,57 +238,90 @@ export class Graph extends Node {
         const position = this.cy.nodes()[i]?.position() ?? { x: 0, y: 0 };
         return all(
           node.x(position.x, animDuration, easeInOutCubic),
-          node.y(position.y, animDuration, easeInOutCubic)
+          node.y(position.y, animDuration, easeInOutCubic),
         );
       }),
       ...this.edges.map((edge, i) => {
         const sourcePos = this.cy.edges()[i]?.source().position();
         const targetPos = this.cy.edges()[i]?.target().position();
         return edge.points(
-          [[sourcePos?.x ?? 0, sourcePos?.y ?? 0], [targetPos?.x ?? 0, targetPos?.y ?? 0]],
+          [
+            [sourcePos?.x ?? 0, sourcePos?.y ?? 0],
+            [targetPos?.x ?? 0, targetPos?.y ?? 0],
+          ],
           animDuration,
-          easeInOutCubic
+          easeInOutCubic,
         );
-      })
+      }),
     );
 
     this.isAnimating = false;
   }
 
-  public *highlightPath(path: string[], duration?: number) {
+  public *highlightPath(
+    path: string[],
+    targetNode?: string,
+    duration?: number,
+  ) {
+    const logger = useLogger();
     const animDuration = duration ?? this.config.animationDuration / 2;
-    const pathSet = new Set(path);
+    const endNode = targetNode ?? path[path.length - 1];
+
+    // Backtrack from the target node to the start node
+    let current = endNode;
+    if (!current) return;
+    const backtrace: string[] = [current];
+
+    while (current) {
+      const currentIndex = path.indexOf(current);
+      if (currentIndex <= 0) break; // No more nodes to backtrack
+
+      const edgeElement = path[currentIndex - 1];
+      const incomingEdge = this.cy
+        .edges()
+        .filter((edge) => edge.id() === edgeElement)
+        .first();
+
+      if (!incomingEdge || !incomingEdge.isEdge()) break;
+
+      backtrace.unshift(incomingEdge.id());
+      const previousNodeId = incomingEdge.source().id();
+      backtrace.unshift(previousNodeId);
+      current = previousNodeId;
+    }
+
+    // Extract nodes and edges from the backtraced path
+    const nodes = backtrace.filter((id) => !id.includes('-'));
+    const edges = backtrace.filter((id) => id.includes('-'));
 
     yield* all(
       ...this.nodes.map((node, i) => {
         const nodeId = this.cy.nodes()[i]?.id() ?? '';
         return node.stroke(
-          pathSet.has(nodeId) ? this.config.highlightColor : this.config.nodeColor,
+          nodes.includes(nodeId)
+            ? this.config.highlightColor
+            : this.config.nodeColor,
           animDuration,
-          easeInOutCubic
+          easeInOutCubic,
         );
       }),
-      // Highlight all edges between nodes in the path
       ...this.edges.map((edge, i) => {
-        const cyEdge = this.cy.edges()[i];
-        if (!cyEdge) return edge.stroke(this.config.edgeColor, animDuration, easeInOutCubic);
-        const sourceId = cyEdge.source().id();
-        const targetId = cyEdge.target().id();
+        const edgeId = this.cy.edges()[i]?.id() ?? '';
         return edge.stroke(
-          pathSet.has(sourceId) && pathSet.has(targetId) ? 
-          this.config.highlightColor : 
-          this.config.edgeColor,
+          edges.includes(edgeId)
+            ? this.config.highlightColor
+            : this.config.edgeColor,
           animDuration,
-          easeInOutCubic
+          easeInOutCubic,
         );
-      })
+      }),
     );
   }
 
   public runBfs(startNode: string): SearchFirstResult {
     return this.cy.elements().bfs({
       root: `#${startNode}`,
-      directed: true
+      directed: true,
     });
   }
 
@@ -286,48 +332,32 @@ export class Graph extends Node {
     const animDuration = duration ?? this.config.animationDuration / 3;
     const bfs = this.cy.elements().bfs({
       root: `#${startNode}`,
-      directed: true
+      directed: true,
     });
 
     // Reset all nodes
     yield* all(
-      ...this.nodes.map(node =>
-        node.stroke(this.config.nodeColor, animDuration / 2)
-      )
+      ...this.nodes.map((node) =>
+        node.stroke(this.config.nodeColor, animDuration / 2),
+      ),
     );
 
     // Animate BFS traversal
     for (const node of bfs.path) {
-      const index = this.cy.nodes().toArray().findIndex(n => n.id() === node.id());
+      const index = this.cy
+        .nodes()
+        .toArray()
+        .findIndex((n) => n.id() === node.id());
       if (index !== -1) {
         const node = this.nodes[index];
         if (!node) continue;
         yield* all(
           node.stroke(this.config.highlightColor, animDuration / 2),
           node.scale(1.2, animDuration / 2),
-          node.scale(1, animDuration / 2)
+          node.scale(1, animDuration / 2),
         );
       }
     }
-
-    this.isAnimating = false;
-  }
-
-  public *highlightShortestPath(start: string, end: string, duration?: number) {
-    if (this.isAnimating) return;
-    this.isAnimating = true;
-
-    const animDuration = duration ?? this.config.animationDuration / 2;
-    const dijkstra = this.cy.elements().dijkstra({
-      root: `#${start}`,
-      directed: true,
-      weight: (edge) => edge.data('weight') || 1
-    });
-
-    const pathNodes = dijkstra.pathTo(this.cy.$(`#${end}`));
-    const path = pathNodes.map(node => node.id());
-
-    yield* this.highlightPath(path, animDuration);
 
     this.isAnimating = false;
   }
@@ -336,12 +366,12 @@ export class Graph extends Node {
     const animDuration = duration ?? this.config.animationDuration / 2;
 
     yield* all(
-      ...this.nodes.map(node =>
-        node.stroke(this.config.nodeColor, animDuration)
+      ...this.nodes.map((node) =>
+        node.stroke(this.config.nodeColor, animDuration),
       ),
-      ...this.edges.map(edge =>
-        edge.stroke(this.config.edgeColor, animDuration)
-      )
+      ...this.edges.map((edge) =>
+        edge.stroke(this.config.edgeColor, animDuration),
+      ),
     );
   }
 
@@ -358,26 +388,26 @@ export class Graph extends Node {
         idealEdgeLength: () => this.nodeSize() * 2,
         nodeOverlap: this.nodeSize() * 4,
         gravity: 1,
-        randomize: false
+        randomize: false,
       },
       grid: {
         name: 'grid',
-        rows: undefined
+        rows: undefined,
       },
       dagre: {
         name: 'dagre',
       },
       circle: {
-        name: 'circle'
+        name: 'circle',
       },
       concentric: {
         name: 'concentric',
-        minNodeSpacing: this.nodeSize() * 1.5
+        minNodeSpacing: this.nodeSize() * 1.5,
       },
       breadthfirst: {
         name: 'breadthfirst',
-        directed: true
-      }
+        directed: true,
+      },
     };
 
     return { ...baseConfig, ...layoutConfigs[layout] };
@@ -385,15 +415,15 @@ export class Graph extends Node {
 
   private centerGraph(): void {
     const bb = this.cy.elements().boundingBox();
-    
-    const offsetX = -bb.x1 - bb.w/2;
-    const offsetY = -bb.y1 - bb.h/2;
-  
+
+    const offsetX = -bb.x1 - bb.w / 2;
+    const offsetY = -bb.y1 - bb.h / 2;
+
     this.cy.nodes().positions((node) => {
       const pos = node.position();
       return {
         x: pos.x + offsetX,
-        y: pos.y + offsetY
+        y: pos.y + offsetY,
       };
     });
   }
@@ -406,46 +436,47 @@ export class Graph extends Node {
   }
 
   private createVisualElements(): void {
-    const NODE_TEXT_SIZE = 
+    const NODE_TEXT_SIZE =
+      // Create nodes with labels
+      this.cy
+        .nodes()
+        .forEach((node, i) => {
+          const position = node.position();
 
-    // Create nodes with labels
-    this.cy.nodes().forEach((node, i) => {
-      const position = node.position();
-      
-      // Create node circle
-      this.add(
-        <Circle
-          layout
-          ref={makeRef(this.nodes, i)}
-          width={this.nodeSize}
-          height={this.nodeSize}
-          x={position.x}
-          y={position.y}
-          fill={this.props.backgroundColor}
-          stroke={this.config.nodeColor}
-          lineWidth={this.config.edgeWidth}
-          alignItems={'center'}
-          justifyContent={'center'}
-          opacity={0}
-          scale={0}
-        >
-          <Txt
-            ref={makeRef(this.labels, i)}
-            fill={this.config.textColor}
-            fontWeight={700}
-            fontSize={this.config.fontSize}
-            text={node.id()}
-            zIndex={2}
-          />
-        </Circle>
-      );
-    });
+          // Create node circle
+          this.add(
+            <Circle
+              layout
+              ref={makeRef(this.nodes, i)}
+              width={this.nodeSize}
+              height={this.nodeSize}
+              x={position.x}
+              y={position.y}
+              fill={this.props.backgroundColor}
+              stroke={this.config.nodeColor}
+              lineWidth={this.config.edgeWidth}
+              alignItems={'center'}
+              justifyContent={'center'}
+              opacity={0}
+              scale={0}
+            >
+              <Txt
+                ref={makeRef(this.labels, i)}
+                fill={this.config.textColor}
+                fontWeight={700}
+                fontSize={this.config.fontSize}
+                text={node.id()}
+                zIndex={2}
+              />
+            </Circle>,
+          );
+        });
 
     // Create edges
     this.cy.edges().forEach((edge, i) => {
       const sourcePos = edge.source().position();
       const targetPos = edge.target().position();
-      
+
       this.add(
         <Line
           ref={makeRef(this.edges, i)}
@@ -455,9 +486,12 @@ export class Graph extends Node {
           arrowSize={20 * this.config.arrowScale}
           startOffset={this.nodeSize() / 2 + this.config.nodePadding}
           endOffset={this.nodeSize() / 2 + this.config.nodePadding}
-          points={[[sourcePos.x, sourcePos.y], [targetPos.x, targetPos.y]]}
+          points={[
+            [sourcePos.x, sourcePos.y],
+            [targetPos.x, targetPos.y],
+          ]}
           end={0.0001}
-        />
+        />,
       );
     });
   }
