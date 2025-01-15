@@ -1,16 +1,18 @@
-import cytoscape, { type SearchFirstResult } from 'cytoscape';
-import dagre from 'cytoscape-dagre';
-
 import {
   Circle,
   Line,
   Node,
   Txt,
+  computed,
   initial,
   signal,
-  type Shape,
 } from '@motion-canvas/2d';
-import type { NodeProps, PossibleCanvasStyle } from '@motion-canvas/2d';
+import type {
+  CanvasStyle,
+  CanvasStyleSignal,
+  NodeProps,
+  PossibleCanvasStyle,
+} from '@motion-canvas/2d';
 import {
   type SignalValue,
   type SimpleSignal,
@@ -18,25 +20,38 @@ import {
   makeRef,
   sequence,
   easeInOutCubic,
-  useLogger,
 } from '@motion-canvas/core';
 
-// Define layout types supported by Cytoscape
-type LayoutType =
-  | 'grid'
-  | 'circle'
-  | 'concentric'
-  | 'breadthfirst'
-  | 'cose'
-  | 'dagre';
+import cytoscape, { type SearchFirstResult } from 'cytoscape';
 
-// Graph node structure with optional metadata
+const LAYOUT_TYPES = [
+  'cose',
+  'grid',
+  'circle',
+  'concentric',
+  'breadthfirst',
+] as const;
+
+/**
+ * Layout types supported by `cytoscape`
+ * @see https://js.cytoscape.org/#layouts
+ */
+export type LayoutType = (typeof LAYOUT_TYPES)[number];
+export type DefaultLayoutType = (typeof LAYOUT_TYPES)[0];
+
+/**
+ * Graph node structure with optional data
+ * Used to define nodes in the graph
+ */
 interface GraphNode {
   id: string;
   data?: Record<string, unknown>;
 }
 
-// Graph edge structure with optional weight
+/**
+ * Graph edge structure with optional weight
+ * Used to define edges in the graph
+ */
 interface GraphEdge {
   source: string;
   target: string;
@@ -46,6 +61,8 @@ interface GraphEdge {
 // Required properties that must be provided to the graph
 interface RequiredGraphProps {
   backgroundColor: SignalValue<PossibleCanvasStyle>;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
 }
 
 // Optional properties with sensible defaults
@@ -56,8 +73,6 @@ interface OptionalGraphProps {
   textColor?: SignalValue<PossibleCanvasStyle>;
   layout?: LayoutType;
   animationDuration?: number;
-  nodes?: GraphNode[];
-  edges?: GraphEdge[];
   highlightColor?: SignalValue<PossibleCanvasStyle>;
   nodePadding?: number;
   edgeWidth?: number;
@@ -69,24 +84,6 @@ interface OptionalGraphProps {
 // Combine with NodeProps while maintaining correct optionality
 export type GraphProps = RequiredGraphProps & OptionalGraphProps & NodeProps;
 
-// Internal configuration type with all properties defined
-type GraphConfiguration = {
-  nodeSize: SignalValue<number>;
-  nodeColor: SignalValue<PossibleCanvasStyle>;
-  edgeColor: SignalValue<PossibleCanvasStyle>;
-  textColor: SignalValue<PossibleCanvasStyle>;
-  layout: LayoutType;
-  animationDuration: number;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  highlightColor: SignalValue<PossibleCanvasStyle>;
-  nodePadding: number;
-  edgeWidth: number;
-  arrowScale: number;
-  textScale: number;
-  fontSize: number;
-};
-
 // Layout configuration options for each layout type
 interface LayoutConfigs {
   [key: string]: Partial<cytoscape.LayoutOptions>;
@@ -97,74 +94,88 @@ export class Graph extends Node {
   @signal()
   public declare readonly nodeSize: SimpleSignal<number, this>;
 
+  @initial('#F3303F')
+  @signal()
+  public declare readonly nodeColor: CanvasStyleSignal<this>;
+
+  @initial('transparent')
+  @signal()
+  public declare readonly backgroundColor: CanvasStyleSignal<this>;
+
+  @initial('#666666')
+  @signal()
+  public declare readonly edgeColor: CanvasStyleSignal<this>;
+
+  @initial('#FFFFFF')
+  @signal()
+  public declare readonly textColor: CanvasStyleSignal<this>;
+
+  @initial('cose')
+  @signal()
+  public declare readonly layout: SimpleSignal<LayoutType, this>;
+
+  @initial('#00FF00')
+  @signal()
+  public declare readonly highlightColor: CanvasStyleSignal<this>;
+
+  @initial(0.25)
+  @signal()
+  public declare readonly nodePadding: SimpleSignal<number, this>;
+
+  @initial(2)
+  @signal()
+  public declare readonly edgeWidth: SimpleSignal<number, this>;
+
+  @initial(1)
+  @signal()
+  public declare readonly arrowScale: SimpleSignal<number, this>;
+
+  @initial(1)
+  @signal()
+  public declare readonly textScale: SimpleSignal<number, this>;
+
+  @signal()
+  public declare readonly fontSize: SimpleSignal<number, this>;
+
   // Store visual elements
   private readonly nodes: Circle[] = [];
   private readonly edges: Line[] = [];
   private readonly labels: Txt[] = [];
-  private readonly highlights: Shape[] = [];
 
   // Core graph management
   private readonly cy: cytoscape.Core;
-  private currentLayout: LayoutType;
-  private readonly config: GraphConfiguration;
 
   // Animation state
   private isAnimating = false;
-  private props: GraphProps;
 
   public constructor(props: GraphProps) {
     super(props);
-    this.props = props;
 
-    // Initialize configuration with defaults
-    this.config = {
-      nodeSize: props.nodeSize ?? 120,
-      nodeColor: props.nodeColor ?? '#F3303F',
-      edgeColor: props.edgeColor ?? '#666666',
-      textColor: props.textColor ?? '#FFFFFF',
-      layout: props.layout ?? 'cose',
-      animationDuration: props.animationDuration ?? 1,
-      highlightColor: props.highlightColor ?? '#00FF00',
-      nodePadding: props.nodePadding ?? 2,
-      edgeWidth: props.edgeWidth ?? 2,
-      arrowScale: props.arrowScale ?? 0.1,
-      textScale: props.textScale ?? 1,
-      nodes: props.nodes ?? [
-        { id: '1' },
-        { id: '2' },
-        { id: '3' },
-        { id: '4' },
-        { id: '5' },
-        { id: '6' },
-        { id: '7' },
-      ],
-      edges: props.edges ?? [
-        { source: '1', target: '4', weight: 1 },
-        { source: '2', target: '3', weight: 2 },
-        { source: '4', target: '5', weight: 1 },
-        { source: '5', target: '2', weight: 3 },
-        { source: '5', target: '3', weight: 2 },
-        { source: '5', target: '6', weight: 1 },
-        { source: '6', target: '1', weight: 2 },
-        { source: '1', target: '7', weight: 1 },
-      ],
-      fontSize:
-        props.fontSize ?? (this.nodeSize() / 2.5) * (props.textScale ?? 1),
-    };
+    // Initialize signals only for defined props
+    if (props.nodeSize !== undefined) this.nodeSize(props.nodeSize);
+    if (props.nodeColor !== undefined) this.nodeColor(props.nodeColor);
+    if (props.edgeColor !== undefined) this.edgeColor(props.edgeColor);
+    if (props.textColor !== undefined) this.textColor(props.textColor);
+    if (props.layout !== undefined) this.layout(props.layout);
+    if (props.highlightColor !== undefined)
+      this.highlightColor(props.highlightColor);
+    if (props.nodePadding !== undefined) this.nodePadding(props.nodePadding);
+    if (props.edgeWidth !== undefined) this.edgeWidth(props.edgeWidth);
+    if (props.arrowScale !== undefined) this.arrowScale(props.arrowScale);
+    if (props.textScale !== undefined) this.textScale(props.textScale);
+    if (props.fontSize !== undefined) {
+      this.fontSize(props.fontSize);
+    } else {
+      this.fontSize((this.nodeSize() / 2.5) * (this.textScale() ?? 1));
+    }
 
-    this.nodeSize(this.config.nodeSize);
-    this.currentLayout = this.config.layout;
-
-    cytoscape.use(dagre);
-
-    // Initialize Cytoscape with configuration
     this.cy = cytoscape({
       headless: true,
       elements: {
-        nodes: this.config.nodes.map((node) => ({
+        nodes: props.nodes.map((node) => ({
           data: { id: node.id, ...node.data },
         })),
-        edges: this.config.edges.map((edge) => ({
+        edges: props.edges.map((edge) => ({
           data: {
             id: `${edge.source}-${edge.target}`,
             source: edge.source,
@@ -179,10 +190,8 @@ export class Graph extends Node {
     this.createVisualElements();
   }
 
-  public *animateIn(duration?: number) {
-    const totalDuration = duration ?? this.config.animationDuration;
-
-    if (totalDuration === 0) {
+  public *animateIn(duration = 1) {
+    if (duration === 0) {
       for (const circle of this.nodes) {
         circle.opacity(1);
         circle.scale(1);
@@ -191,8 +200,8 @@ export class Graph extends Node {
       return;
     }
 
-    const nodesPortion = totalDuration * 0.5;
-    const edgesPortion = totalDuration * 0.5;
+    const nodesPortion = duration * 0.5;
+    const edgesPortion = duration * 0.5;
 
     const nodeDelay = nodesPortion / this.nodes.length;
     const edgeDelay = edgesPortion / this.edges.length;
@@ -213,23 +222,20 @@ export class Graph extends Node {
     );
   }
 
-  public *stabilizedRotation(degrees: number, duration?: number) {
-    const animDuration = duration ?? this.config.animationDuration;
+  public *stabilizedRotation(degrees: number, duration = 1) {
     yield* all(
-      this.rotation(degrees, animDuration, easeInOutCubic),
+      this.rotation(degrees, duration, easeInOutCubic),
       ...this.nodes.map((node) =>
-        node.rotation(-degrees, animDuration, easeInOutCubic),
+        node.rotation(-degrees, duration, easeInOutCubic),
       ),
     );
   }
 
-  public *changeLayout(newLayout: LayoutType, duration?: number) {
-    if (newLayout === this.currentLayout || this.isAnimating) return;
+  public *changeLayout(newLayout: LayoutType, duration = 1) {
+    if (newLayout === this.layout() || this.isAnimating) return;
 
     this.isAnimating = true;
-    const animDuration = duration ?? this.config.animationDuration;
-
-    this.currentLayout = newLayout;
+    this.layout(newLayout);
     this.applyLayout();
 
     // Animate nodes and edges to new positions
@@ -237,8 +243,8 @@ export class Graph extends Node {
       ...this.nodes.map((node, i) => {
         const position = this.cy.nodes()[i]?.position() ?? { x: 0, y: 0 };
         return all(
-          node.x(position.x, animDuration, easeInOutCubic),
-          node.y(position.y, animDuration, easeInOutCubic),
+          node.x(position.x, duration, easeInOutCubic),
+          node.y(position.y, duration, easeInOutCubic),
         );
       }),
       ...this.edges.map((edge, i) => {
@@ -249,7 +255,7 @@ export class Graph extends Node {
             [sourcePos?.x ?? 0, sourcePos?.y ?? 0],
             [targetPos?.x ?? 0, targetPos?.y ?? 0],
           ],
-          animDuration,
+          duration,
           easeInOutCubic,
         );
       }),
@@ -258,13 +264,7 @@ export class Graph extends Node {
     this.isAnimating = false;
   }
 
-  public *highlightPath(
-    path: string[],
-    targetNode?: string,
-    duration?: number,
-  ) {
-    const logger = useLogger();
-    const animDuration = duration ?? this.config.animationDuration / 2;
+  public *highlightPath(path: string[], targetNode?: string, duration = 0.5) {
     const endNode = targetNode ?? path[path.length - 1];
 
     // Backtrack from the target node to the start node
@@ -298,26 +298,23 @@ export class Graph extends Node {
       ...this.nodes.map((node, i) => {
         const nodeId = this.cy.nodes()[i]?.id() ?? '';
         return node.stroke(
-          nodes.includes(nodeId)
-            ? this.config.highlightColor
-            : this.config.nodeColor,
-          animDuration,
+          nodes.includes(nodeId) ? this.highlightColor() : this.nodeColor(),
+          duration,
           easeInOutCubic,
         );
       }),
       ...this.edges.map((edge, i) => {
         const edgeId = this.cy.edges()[i]?.id() ?? '';
         return edge.stroke(
-          edges.includes(edgeId)
-            ? this.config.highlightColor
-            : this.config.edgeColor,
-          animDuration,
+          edges.includes(edgeId) ? this.highlightColor : this.edgeColor(),
+          duration,
           easeInOutCubic,
         );
       }),
     );
   }
 
+  @computed()
   public runBfs(startNode: string): SearchFirstResult {
     return this.cy.elements().bfs({
       root: `#${startNode}`,
@@ -325,36 +322,57 @@ export class Graph extends Node {
     });
   }
 
-  public *animateBFS(startNode: string, duration?: number) {
+  public *animateBFS(startNode: string, duration = 0.3) {
     if (this.isAnimating) return;
     this.isAnimating = true;
 
-    const animDuration = duration ?? this.config.animationDuration / 3;
-    const bfs = this.cy.elements().bfs({
-      root: `#${startNode}`,
-      directed: true,
-    });
+    const bfs = this.runBfs(startNode);
+    const discovered = new Set<string>();
+    const traversedEdges = new Set<string>();
 
-    // Reset all nodes
+    // Reset all nodes and edges
     yield* all(
-      ...this.nodes.map((node) =>
-        node.stroke(this.config.nodeColor, animDuration / 2),
-      ),
+      ...this.nodes.map((node) => node.stroke(this.nodeColor(), duration / 2)),
+      ...this.edges.map((edge) => edge.stroke(this.edgeColor(), duration / 2)),
     );
 
     // Animate BFS traversal
     for (const node of bfs.path) {
+      const nodeId = node.id();
+      discovered.add(nodeId);
+
+      // Find and highlight edges to this node
+      for (const edge of this.cy.edges()) {
+        if (
+          discovered.has(edge.source().id()) &&
+          edge.target().id() === nodeId
+        ) {
+          const edgeIndex = this.cy
+            .edges()
+            .toArray()
+            .findIndex((e) => e.id() === edge.id());
+          if (edgeIndex !== -1) {
+            traversedEdges.add(edge.id());
+            const edgeElement = this.edges[edgeIndex];
+            if (edgeElement) {
+              yield* edgeElement.stroke(this.highlightColor, duration / 2);
+            }
+          }
+        }
+      }
+
+      // Highlight the current node
       const index = this.cy
         .nodes()
         .toArray()
-        .findIndex((n) => n.id() === node.id());
+        .findIndex((n) => n.id() === nodeId);
       if (index !== -1) {
-        const node = this.nodes[index];
-        if (!node) continue;
+        const nodeElement = this.nodes[index];
+        if (!nodeElement) continue;
         yield* all(
-          node.stroke(this.config.highlightColor, animDuration / 2),
-          node.scale(1.2, animDuration / 2),
-          node.scale(1, animDuration / 2),
+          nodeElement.stroke(this.highlightColor, duration / 2),
+          nodeElement.scale(1.2, duration / 2),
+          nodeElement.scale(1, duration / 2),
         );
       }
     }
@@ -362,16 +380,10 @@ export class Graph extends Node {
     this.isAnimating = false;
   }
 
-  public *clearHighlights(duration?: number) {
-    const animDuration = duration ?? this.config.animationDuration / 2;
-
+  public *clearHighlights(duration = 0.5) {
     yield* all(
-      ...this.nodes.map((node) =>
-        node.stroke(this.config.nodeColor, animDuration),
-      ),
-      ...this.edges.map((edge) =>
-        edge.stroke(this.config.edgeColor, animDuration),
-      ),
+      ...this.nodes.map((node) => node.stroke(this.nodeColor(), duration)),
+      ...this.edges.map((edge) => edge.stroke(this.edgeColor(), duration)),
     );
   }
 
@@ -379,7 +391,6 @@ export class Graph extends Node {
     const baseConfig: cytoscape.LayoutOptions = {
       name: 'preset',
       animate: false,
-      padding: this.config.nodePadding,
     };
 
     const layoutConfigs: LayoutConfigs = {
@@ -430,47 +441,44 @@ export class Graph extends Node {
 
   private applyLayout(): void {
     this.cy.layout(this.getLayoutConfig('grid')).run();
-    const layout = this.cy.layout(this.getLayoutConfig(this.currentLayout));
+    const layout = this.cy.layout(this.getLayoutConfig(this.layout()));
     layout.run();
     this.centerGraph();
   }
 
   private createVisualElements(): void {
-    const NODE_TEXT_SIZE =
-      // Create nodes with labels
-      this.cy
-        .nodes()
-        .forEach((node, i) => {
-          const position = node.position();
+    // Create nodes with labels
+    this.cy.nodes().forEach((node, i) => {
+      const position = node.position();
 
-          // Create node circle
-          this.add(
-            <Circle
-              layout
-              ref={makeRef(this.nodes, i)}
-              width={this.nodeSize}
-              height={this.nodeSize}
-              x={position.x}
-              y={position.y}
-              fill={this.props.backgroundColor}
-              stroke={this.config.nodeColor}
-              lineWidth={this.config.edgeWidth}
-              alignItems={'center'}
-              justifyContent={'center'}
-              opacity={0}
-              scale={0}
-            >
-              <Txt
-                ref={makeRef(this.labels, i)}
-                fill={this.config.textColor}
-                fontWeight={700}
-                fontSize={this.config.fontSize}
-                text={node.id()}
-                zIndex={2}
-              />
-            </Circle>,
-          );
-        });
+      // Create node circle
+      this.add(
+        <Circle
+          layout
+          ref={makeRef(this.nodes, i)}
+          width={this.nodeSize}
+          height={this.nodeSize}
+          x={position.x}
+          y={position.y}
+          fill={this.backgroundColor}
+          stroke={this.nodeColor}
+          lineWidth={this.edgeWidth}
+          alignItems={'center'}
+          justifyContent={'center'}
+          opacity={0}
+          scale={0}
+        >
+          <Txt
+            ref={makeRef(this.labels, i)}
+            fill={this.textColor}
+            fontWeight={700}
+            fontSize={this.fontSize}
+            text={node.id()}
+            zIndex={2}
+          />
+        </Circle>,
+      );
+    });
 
     // Create edges
     this.cy.edges().forEach((edge, i) => {
@@ -480,12 +488,14 @@ export class Graph extends Node {
       this.add(
         <Line
           ref={makeRef(this.edges, i)}
-          stroke={this.config.edgeColor}
-          lineWidth={this.config.edgeWidth}
+          stroke={this.edgeColor}
+          lineWidth={this.edgeWidth}
           endArrow
-          arrowSize={20 * this.config.arrowScale}
-          startOffset={this.nodeSize() / 2 + this.config.nodePadding}
-          endOffset={this.nodeSize() / 2 + this.config.nodePadding}
+          arrowSize={20 * this.arrowScale()}
+          startOffset={
+            this.nodeSize() / 2 + this.nodePadding() * this.nodeSize()
+          }
+          endOffset={this.nodeSize() / 2 + this.nodePadding() * this.nodeSize()}
           points={[
             [sourcePos.x, sourcePos.y],
             [targetPos.x, targetPos.y],

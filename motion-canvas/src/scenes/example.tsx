@@ -1,5 +1,15 @@
-import { makeScene2D } from '@motion-canvas/2d';
-import { all, createRef, waitFor, useLogger } from '@motion-canvas/core';
+import { Circle, makeScene2D } from '@motion-canvas/2d';
+import {
+  all,
+  createRef,
+  waitFor,
+  useLogger,
+  tween,
+  map,
+  easeInOutCubic,
+  Vector2,
+  Color,
+} from '@motion-canvas/core';
 
 import { Graph } from '~/components/NodeGraph';
 
