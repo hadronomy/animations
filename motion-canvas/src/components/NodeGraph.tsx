@@ -314,7 +314,6 @@ export class Graph extends Node {
     );
   }
 
-  @computed()
   public runBfs(startNode: string): SearchFirstResult {
     return this.cy.elements().bfs({
       root: `#${startNode}`,

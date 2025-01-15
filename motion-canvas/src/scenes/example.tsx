@@ -55,4 +55,6 @@ export default makeScene2D(function* (view) {
 
   yield* graph().highlightPath(path);
   yield* waitFor(1);
+
+  yield* graph().animateBFS('MAD');
 });
