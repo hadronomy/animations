@@ -1,4 +1,4 @@
-from manim import Scene, Circle, Create, PINK
+from manim import PINK, Circle, Create, Scene
 
 
 class CreateCircle(Scene):
